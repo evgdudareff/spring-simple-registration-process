@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+    container_name: frontend
+#    ports:
+#      - "${REACT_LOCAL_PORT}:${REACT_DOCKER_PORT}"
+    volumes:
+      - ./frontend:/usr/src/app
+      - ./frontend/node_modules:/usr/src/app/node_modules
+    command: 'npm start'
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: backend
+#    ports:
+#      - "${SPRING_LOCAL_PORT}:${SPRING_DOCKER_PORT}"
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: ./.env
+    hostname: backend
+    volumes:
+      - ./src:/usr/src/app/src
+      - ./pom.xml:/usr/src/app/pom.xml
+
+  db:
+    build:
+      context: .
+      dockerfile: Dockerfile.db
+      args:
+        - MYSQL_DATABASE=${MYSQL_DATABASE}
+        - MYSQL_ROOT_PASSWORD=${MYSQL_USER_PASSWORD}
+    container_name: db
+#    ports:
+#      - "${MYSQL_LOCAL_PORT}:${MYSQL_DOCKER_PORT}"
+    healthcheck:
+      test: "mysql --user=root --password=root --execute \"SHOW DATABASES;\""
+
+  proxy:
+    image: nginx
+    ports:
+      - "80:80"
+    container_name: proxy
+    depends_on:
+      - frontend
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+
+volumes: # This is required for the node_modules named volume
+  node_modules:
